@@ -24,12 +24,12 @@ const INITIAL_TITLES = [
 
 export default function DetailedConstructionEstimator() {
   const [projectInfo, setProjectInfo] = useState(() => {
-    const saved = localStorage.getItem('est_final_v12_info');
+    const saved = localStorage.getItem('est_v13_info');
     return saved ? JSON.parse(saved) : { name: "", client: "" };
   });
 
   const [sections, setSections] = useState(() => {
-    const saved = localStorage.getItem('est_final_v12_sections');
+    const saved = localStorage.getItem('est_v13_sections');
     return saved ? JSON.parse(saved) : INITIAL_TITLES.map((title, idx) => ({
       id: idx,
       title: title,
@@ -41,8 +41,8 @@ export default function DetailedConstructionEstimator() {
   });
 
   useEffect(() => {
-    localStorage.setItem('est_final_v12_info', JSON.stringify(projectInfo));
-    localStorage.setItem('est_final_v12_sections', JSON.stringify(sections));
+    localStorage.setItem('est_v13_info', JSON.stringify(projectInfo));
+    localStorage.setItem('est_v13_sections', JSON.stringify(sections));
   }, [projectInfo, sections]);
 
   const computedData = useMemo(() => {
@@ -60,8 +60,8 @@ export default function DetailedConstructionEstimator() {
           const d = parseFloat(m.d) || 0;
 
           if (sec.unit === 'M3') val = nos * l * b * d;
-          else if (sec.unit === 'M2') val = b * d;
-          else if (sec.unit === 'Rft') val = l;
+          else if (sec.unit === 'M2') val = nos * b * d;
+          else if (sec.unit === 'Rft') val = nos * l;
           else if (sec.unit === 'Nos') val = nos;
           
           return m.type === 'Add' ? acc + val : acc - val;
@@ -105,7 +105,7 @@ export default function DetailedConstructionEstimator() {
 
     autoTable(doc, {
       startY: 38,
-      head: [['Work Description', 'Unit', 'Qty', 'Rate', 'Amount (Rs.)']],
+      head: [['Description', 'Unit', 'Qty', 'Rate', 'Amount (Rs.)']],
       body: tableRows,
       theme: 'grid',
       headStyles: { fillColor: [15, 23, 42], halign: 'center' }
@@ -117,7 +117,7 @@ export default function DetailedConstructionEstimator() {
     <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f1f5f9', minHeight: '100vh', paddingBottom: '160px', position: 'relative' }}>
       <div style={{ background: '#0f172a', color: 'white', padding: '20px 15px', textAlign: 'center' }}>
         <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>DETAILED CONSTRUCTION ESTIMATE</h2>
-        <button onClick={() => { if(window.confirm("Reset?")) { localStorage.clear(); window.location.reload(); }}} style={resetStyle}>RESET ALL</button>
+        <button onClick={() => { if(window.confirm("Reset Data?")) { localStorage.clear(); window.location.reload(); }}} style={resetStyle}>RESET ALL</button>
       </div>
 
       <div style={{ background: '#fff', padding: '12px', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -140,7 +140,7 @@ export default function DetailedConstructionEstimator() {
 
             {sec.unit === 'Lumpsum' ? (
               <div style={{ padding: '15px' }}>
-                <input type="number" placeholder="Enter Total Quantity" value={sec.lsQty} onChange={e => updateSection(sec.id, 'lsQty', e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontWeight: 'bold' }} />
+                <input type="number" placeholder="Enter Total Qty" value={sec.lsQty} onChange={e => updateSection(sec.id, 'lsQty', e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontWeight: 'bold' }} />
               </div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
@@ -182,7 +182,7 @@ export default function DetailedConstructionEstimator() {
       </div>
 
       <div style={stickyFoot}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#64748b' }}>ESTIMATE TOTAL</span>
           <span style={{ fontSize: '22px', fontWeight: '900', color: '#0f172a' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
         </div>
