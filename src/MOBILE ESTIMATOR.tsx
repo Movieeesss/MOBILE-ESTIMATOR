@@ -24,12 +24,12 @@ const INITIAL_TITLES = [
 
 export default function DetailedConstructionEstimator() {
   const [projectInfo, setProjectInfo] = useState(() => {
-    const saved = localStorage.getItem('est_v14_info');
+    const saved = localStorage.getItem('est_v15_info');
     return saved ? JSON.parse(saved) : { name: "", client: "" };
   });
 
   const [sections, setSections] = useState(() => {
-    const saved = localStorage.getItem('est_v14_sections');
+    const saved = localStorage.getItem('est_v15_sections');
     return saved ? JSON.parse(saved) : INITIAL_TITLES.map((title, idx) => ({
       id: idx,
       title: title,
@@ -41,8 +41,8 @@ export default function DetailedConstructionEstimator() {
   });
 
   useEffect(() => {
-    localStorage.setItem('est_v14_info', JSON.stringify(projectInfo));
-    localStorage.setItem('est_v14_sections', JSON.stringify(sections));
+    localStorage.setItem('est_v15_info', JSON.stringify(projectInfo));
+    localStorage.setItem('est_v15_sections', JSON.stringify(sections));
   }, [projectInfo, sections]);
 
   const computedData = useMemo(() => {
@@ -58,12 +58,10 @@ export default function DetailedConstructionEstimator() {
           const l = parseFloat(m.l) || 0;
           const b = parseFloat(m.b) || 0;
           const d = parseFloat(m.d) || 0;
-
           if (sec.unit === 'M3') val = nos * l * b * d;
-          else if (sec.unit === 'M2') val = nos * b * d;
-          else if (sec.unit === 'Rft') val = nos * l;
+          else if (sec.unit === 'M2') val = b * d;
+          else if (sec.unit === 'Rft') val = l;
           else if (sec.unit === 'Nos') val = nos;
-          
           return m.type === 'Add' ? acc + val : acc - val;
         }, 0);
       }
@@ -133,20 +131,19 @@ export default function DetailedConstructionEstimator() {
               </div>
             </div>
 
-            {sec.unit === 'Lumpsum' ? (
-              <div style={{ padding: '15px' }}>
-                <input type="number" placeholder="Total Qty" value={sec.lsQty} onChange={e => updateSection(sec.id, 'lsQty', e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }} />
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
+            <div style={{ padding: '5px' }}>
+              {sec.unit === 'Lumpsum' ? (
+                <input type="number" placeholder="Enter Total Quantity" value={sec.lsQty} onChange={e => updateSection(sec.id, 'lsQty', e.target.value)} style={{ width: '95%', margin: '10px auto', display: 'block', padding: '10px', border: '1px solid #ddd' }} />
+              ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                   <thead style={{ background: '#f8fafc' }}>
                     <tr>
                       <th style={tdStyle}>Desc</th>
                       <th style={tdStyle}>Nos</th>
+                      {sec.unit === 'M3' && <th style={tdStyle}>L</th>}
                       {sec.unit === 'Rft' && <th style={tdStyle}>L</th>}
-                      {sec.unit === 'M2' && <><th style={tdStyle}>B</th><th style={tdStyle}>D</th></>}
-                      {sec.unit === 'M3' && <><th style={tdStyle}>L</th><th style={tdStyle}>B</th><th style={tdStyle}>D</th></>}
+                      {(sec.unit === 'M3' || sec.unit === 'M2') && <th style={tdStyle}>B</th>}
+                      {(sec.unit === 'M3' || sec.unit === 'M2') && <th style={tdStyle}>D</th>}
                       <th style={tdStyle}></th>
                     </tr>
                   </thead>
@@ -155,16 +152,17 @@ export default function DetailedConstructionEstimator() {
                       <tr key={m.id} style={{ background: m.type === 'Ded' ? '#fff1f2' : 'white' }}>
                         <td style={tdStyle}><input value={m.label} onChange={e => updateM(sec.id, m.id, 'label', e.target.value)} style={cellInp} /></td>
                         <td style={tdStyle}><input type="number" value={m.nos} onChange={e => updateM(sec.id, m.id, 'nos', e.target.value)} style={cellInp} /></td>
-                        {sec.unit === 'Rft' && <td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInp} /></td>
-                        {sec.unit === 'M2' && <><td style={tdStyle}><input type="number" value={m.b} onChange={e => updateM(sec.id, m.id, 'b', e.target.value)} style={cellInp} /></td><td style={tdStyle}><input type="number" value={m.d} onChange={e => updateM(sec.id, m.id, 'd', e.target.value)} style={cellInp} /></td></>}
-                        {sec.unit === 'M3' && <><td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInp} /></td><td style={tdStyle}><input type="number" value={m.b} onChange={e => updateM(sec.id, m.id, 'b', e.target.value)} style={cellInp} /></td><td style={tdStyle}><input type="number" value={m.d} onChange={e => updateM(sec.id, m.id, 'd', e.target.value)} style={cellInp} /></td></>}
+                        {sec.unit === 'M3' && <td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInp} /></td>}
+                        {sec.unit === 'Rft' && <td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInp} /></td>}
+                        {(sec.unit === 'M3' || sec.unit === 'M2') && <td style={tdStyle}><input type="number" value={m.b} onChange={e => updateM(sec.id, m.id, 'b', e.target.value)} style={cellInp} /></td>}
+                        {(sec.unit === 'M3' || sec.unit === 'M2') && <td style={tdStyle}><input type="number" value={m.d} onChange={e => updateM(sec.id, m.id, 'd', e.target.value)} style={cellInp} /></td>}
                         <td style={tdStyle}><button onClick={() => deleteRow(sec.id, m.id)} style={{ border: 'none', background: 'transparent' }}>🗑️</button></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-            )}
+              )}
+            </div>
 
             <div style={{ padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -184,7 +182,7 @@ export default function DetailedConstructionEstimator() {
           <span style={{ fontSize: '20px', fontWeight: '900' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-          <button onClick={generatePDF} style={mainBtn}>PDF 📄</button>
+          <button onClick={generatePDF} style={mainBtn}>DOWNLOAD PDF 📄</button>
           <button onClick={() => {
             let msg = `*ESTIMATE*\n*Project:* ${projectInfo.name}\n*Total:* ₹${computedData.grandTotal.toLocaleString()}\n\n`;
             computedData.processed.filter(s => s.totalQty !== 0).forEach(s => msg += `✅ ${s.title}: ${s.totalQty.toFixed(2)} ${s.unit}\n`);
