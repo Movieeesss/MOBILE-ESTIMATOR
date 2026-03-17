@@ -24,33 +24,51 @@ const INITIAL_TITLES = [
 
 export default function DetailedConstructionEstimator() {
   const [projectInfo, setProjectInfo] = useState(() => {
-    const saved = localStorage.getItem('est_final_info_v2');
+    const saved = localStorage.getItem('est_final_info_v3');
     return saved ? JSON.parse(saved) : { name: "", client: "" };
   });
 
   const [sections, setSections] = useState(() => {
-    const saved = localStorage.getItem('est_final_sections_v2');
+    const saved = localStorage.getItem('est_final_sections_v3');
     return saved ? JSON.parse(saved) : INITIAL_TITLES.map((title, idx) => ({
       id: idx,
       title: title,
       unit: 'M3',
       rate: '',
+      lumpsumQty: '0',
       measurements: [{ id: Date.now() + idx, type: 'Add', label: 'Main', nos: '1', l: '0', b: '0', d: '0' }]
     }));
   });
 
   useEffect(() => {
-    localStorage.setItem('est_final_info_v2', JSON.stringify(projectInfo));
-    localStorage.setItem('est_final_sections_v2', JSON.stringify(sections));
+    localStorage.setItem('est_final_info_v3', JSON.stringify(projectInfo));
+    localStorage.setItem('est_final_sections_v3', JSON.stringify(sections));
   }, [projectInfo, sections]);
 
   const computedData = useMemo(() => {
     let grandTotal = 0;
     const processed = sections.map(sec => {
-      const totalQty = sec.measurements.reduce((acc, m) => {
-        const val = (parseFloat(m.nos) || 0) * (parseFloat(m.l) || 0) * (parseFloat(m.b) || 0) * (parseFloat(m.d) || 0);
-        return m.type === 'Add' ? acc + val : acc - val;
-      }, 0);
+      let totalQty = 0;
+      
+      if (sec.unit === 'Lumpsum') {
+        totalQty = parseFloat(sec.lumpsumQty) || 0;
+      } else {
+        totalQty = sec.measurements.reduce((acc, m) => {
+          let val = 1;
+          const nos = parseFloat(m.nos) || 0;
+          const l = parseFloat(m.l) || 0;
+          const b = parseFloat(m.b) || 0;
+          const d = parseFloat(m.d) || 0;
+
+          if (sec.unit === 'M3') val = nos * l * b * d;
+          else if (sec.unit === 'M2') val = nos * l * b;
+          else if (sec.unit === 'Rft') val = nos * l;
+          else if (sec.unit === 'Nos') val = nos;
+          
+          return m.type === 'Add' ? acc + val : acc - val;
+        }, 0);
+      }
+
       const rateVal = parseFloat(sec.rate) || 0;
       const amount = totalQty * rateVal;
       grandTotal += amount;
@@ -98,7 +116,7 @@ export default function DetailedConstructionEstimator() {
 
     autoTable(doc, {
       startY: 38,
-      head: [['Work Description', 'Unit', 'Qty', 'Rate', 'Amount (Rs.)']], // Column renamed to Amount (Rs.)
+      head: [['Work Description', 'Unit', 'Qty', 'Rate', 'Amount (Rs.)']],
       body: tableRows,
       theme: 'grid',
       headStyles: { fillColor: [15, 23, 42], halign: 'center' },
@@ -128,39 +146,64 @@ export default function DetailedConstructionEstimator() {
               <textarea value={sec.title} onChange={(e) => updateSection(sec.id, 'title', e.target.value)} style={titleArea} rows={1} />
               <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
                 <select value={sec.unit} onChange={(e) => updateSection(sec.id, 'unit', e.target.value)} style={dropStyle}>
-                  <option>M3</option><option>M2</option><option>Nos</option><option>Rft</option>
+                  <option value="M3">M3</option>
+                  <option value="M2">M2</option>
+                  <option value="Nos">Nos</option>
+                  <option value="Rft">Rft</option>
+                  <option value="Lumpsum">Lumpsum</option>
                 </select>
                 <input placeholder="Rate ₹" type="number" value={sec.rate} onChange={(e) => updateSection(sec.id, 'rate', e.target.value)} style={rateInp} />
               </div>
             </div>
 
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-              <thead style={{ background: '#f8fafc' }}>
-                <tr>
-                  <th style={tdStyle}>Desc</th><th style={tdStyle}>Nos</th><th style={tdStyle}>L</th><th style={tdStyle}>B</th><th style={tdStyle}>D</th><th style={tdStyle}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {sec.measurements.map(m => (
-                  <tr key={m.id} style={{ background: m.type === 'Ded' ? '#fff1f2' : 'white' }}>
-                    <td style={tdStyle}><input value={m.label} onChange={e => updateM(sec.id, m.id, 'label', e.target.value)} style={cellInp} /></td>
-                    <td style={tdStyle}><input type="number" value={m.nos} onChange={e => updateM(sec.id, m.id, 'nos', e.target.value)} style={cellInp} /></td>
-                    <td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInp} /></td>
-                    <td style={tdStyle}><input type="number" value={m.b} onChange={e => updateM(sec.id, m.id, 'b', e.target.value)} style={cellInp} /></td>
-                    <td style={tdStyle}><input type="number" value={m.d} onChange={e => updateM(sec.id, m.id, 'd', e.target.value)} style={cellInp} /></td>
-                    <td style={tdStyle}><button onClick={() => deleteRow(sec.id, m.id)} style={{ border: 'none', background: 'transparent' }}>🗑️</button></td>
+            {sec.unit === 'Lumpsum' ? (
+              <div style={{ padding: '15px', background: '#fff' }}>
+                <label style={{ fontSize: '12px', color: '#666' }}>Enter Total Quantity:</label>
+                <input 
+                  type="number" 
+                  value={sec.lumpsumQty} 
+                  onChange={(e) => updateSection(sec.id, 'lumpsumQty', e.target.value)} 
+                  style={{ width: '100%', padding: '10px', marginTop: '5px', border: '1px solid #cbd5e1', borderRadius: '4px', fontWeight: 'bold' }} 
+                />
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                <thead style={{ background: '#f8fafc' }}>
+                  <tr>
+                    <th style={tdStyle}>Desc</th>
+                    <th style={tdStyle}>Nos</th>
+                    {sec.unit !== 'Nos' && <th style={tdStyle}>L</th>}
+                    {(sec.unit === 'M3' || sec.unit === 'M2') && <th style={tdStyle}>B</th>}
+                    {sec.unit === 'M3' && <th style={tdStyle}>D</th>}
+                    <th style={tdStyle}></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {sec.measurements.map(m => (
+                    <tr key={m.id} style={{ background: m.type === 'Ded' ? '#fff1f2' : 'white' }}>
+                      <td style={tdStyle}><input value={m.label} onChange={e => updateM(sec.id, m.id, 'label', e.target.value)} style={cellInp} /></td>
+                      <td style={tdStyle}><input type="number" value={m.nos} onChange={e => updateM(sec.id, m.id, 'nos', e.target.value)} style={cellInp} /></td>
+                      {sec.unit !== 'Nos' && <td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInp} /></td>
+                      {(sec.unit === 'M3' || sec.unit === 'M2') && <td style={tdStyle}><input type="number" value={m.b} onChange={e => updateM(sec.id, m.id, 'b', e.target.value)} style={cellInp} /></td>
+                      {sec.unit === 'M3' && <td style={tdStyle}><input type="number" value={m.d} onChange={e => updateM(sec.id, m.id, 'd', e.target.value)} style={cellInp} /></td>
+                      <td style={tdStyle}><button onClick={() => deleteRow(sec.id, m.id)} style={{ border: 'none', background: 'transparent' }}>🗑️</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
 
             <div style={{ padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
               <div style={{ display: 'flex', gap: '6px' }}>
-                <button onClick={() => addRow(sec.id, 'Add')} style={addBtn}>+ Add</button>
-                <button onClick={() => addRow(sec.id, 'Ded')} style={{ ...addBtn, background: '#e11d48' }}>- Ded</button>
+                {sec.unit !== 'Lumpsum' && (
+                  <>
+                    <button onClick={() => addRow(sec.id, 'Add')} style={addBtn}>+ Add</button>
+                    <button onClick={() => addRow(sec.id, 'Ded')} style={{ ...addBtn, background: '#e11d48' }}>- Ded</button>
+                  </>
+                )}
               </div>
               <div style={{ textAlign: 'right', fontSize: '12px', fontWeight: 'bold', color: '#0f172a' }}>
-                 {sec.totalQty.toFixed(2)} {sec.unit} | ₹{sec.amount.toLocaleString()}
+                 {sec.totalQty.toFixed(2)} {sec.unit === 'Lumpsum' ? 'LS' : sec.unit} | ₹{sec.amount.toLocaleString()}
               </div>
             </div>
           </div>
@@ -185,7 +228,7 @@ export default function DetailedConstructionEstimator() {
   );
 }
 
-// Mobile Optimized Styling
+// Mobile Optimized Styles
 const tdStyle = { border: '1px solid #e2e8f0', padding: '4px', textAlign: 'center' as const };
 const cellInp = { width: '100%', border: 'none', textAlign: 'center' as const, fontSize: '12px', background: 'transparent' };
 const headerInp = { padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' };
