@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import jsPDF from 'jspdf';
+import jsPDF from 'jsPDF';
 import autoTable from 'jspdf-autotable';
 
 const INITIAL_TITLES = [
@@ -22,26 +22,26 @@ const INITIAL_TITLES = [
   "36. Main gate", "37. Electrical - LS", "38. Sanitary - LS"
 ];
 
-export default function UniqMasterEstimator() {
+export default function DetailedConstructionEstimator() {
   const [projectInfo, setProjectInfo] = useState(() => {
-    const saved = localStorage.getItem('uniq_v3_info');
+    const saved = localStorage.getItem('est_v4_info');
     return saved ? JSON.parse(saved) : { name: "", client: "", location: "" };
   });
 
   const [sections, setSections] = useState(() => {
-    const saved = localStorage.getItem('uniq_v3_sections');
+    const saved = localStorage.getItem('est_v4_sections');
     return saved ? JSON.parse(saved) : INITIAL_TITLES.map((title, idx) => ({
       id: idx,
       title: title,
       unit: 'M3',
-      rate: '0',
+      rate: '',
       measurements: [{ id: Date.now() + idx, type: 'Add', label: 'Main', nos: '1', l: '0', b: '0', d: '0' }]
     }));
   });
 
   useEffect(() => {
-    localStorage.setItem('uniq_v3_info', JSON.stringify(projectInfo));
-    localStorage.setItem('uniq_v3_sections', JSON.stringify(sections));
+    localStorage.setItem('est_v4_info', JSON.stringify(projectInfo));
+    localStorage.setItem('est_v4_sections', JSON.stringify(sections));
   }, [projectInfo, sections]);
 
   const computedData = useMemo(() => {
@@ -51,15 +51,16 @@ export default function UniqMasterEstimator() {
         const val = (parseFloat(m.nos) || 0) * (parseFloat(m.l) || 0) * (parseFloat(m.b) || 0) * (parseFloat(m.d) || 0);
         return m.type === 'Add' ? acc + val : acc - val;
       }, 0);
-      const amount = totalQty * (parseFloat(sec.rate) || 0);
+      const rateVal = parseFloat(sec.rate) || 0;
+      const amount = totalQty * rateVal;
       grandTotal += amount;
-      return { ...sec, totalQty, amount };
+      return { ...sec, totalQty, amount, rateVal };
     });
     return { processed, grandTotal };
   }, [sections]);
 
-  const updateSectionTitle = (id: number, newTitle: string) => {
-    setSections(sections.map(s => s.id === id ? { ...s, title: newTitle } : s));
+  const updateSection = (id: number, field: string, val: string) => {
+    setSections(sections.map(s => s.id === id ? { ...s, [field]: val } : s));
   };
 
   const addRow = (secId: number, type: 'Add' | 'Ded') => {
@@ -68,8 +69,7 @@ export default function UniqMasterEstimator() {
   };
 
   const deleteRow = (secId: number, mId: number) => {
-    setSections(sections.map(s => s.id === secId ? 
-      { ...s, measurements: s.measurements.filter(m => m.id !== mId) } : s));
+    setSections(sections.map(s => s.id === secId ? { ...s, measurements: s.measurements.filter(m => m.id !== mId) } : s));
   };
 
   const updateM = (secId: number, mId: number, field: string, val: string) => {
@@ -78,83 +78,66 @@ export default function UniqMasterEstimator() {
     } : s));
   };
 
-  const clearAllData = () => {
-    if(window.confirm("Clear all data and reset to original titles?")) {
-      localStorage.clear();
-      window.location.reload();
-    }
-  };
-
   const generatePDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(16);
-    doc.text("UNIQ DESIGNS & CONSTRUCTIONS", 105, 15, { align: 'center' });
-    doc.setFontSize(12);
-    doc.text("DETAILED CONSTRUCTION ESTIMATE", 105, 22, { align: 'center' });
+    doc.text("DETAILED CONSTRUCTION ESTIMATE", 105, 15, { align: 'center' });
     
     doc.setFontSize(10);
-    doc.text(`Project: ${projectInfo.name}`, 14, 35);
-    doc.text(`Client: ${projectInfo.client}`, 14, 40);
-    doc.text(`Location: ${projectInfo.location}`, 14, 45);
+    doc.text(`Project: ${projectInfo.name}`, 14, 25);
+    doc.text(`Client: ${projectInfo.client}`, 14, 30);
+    doc.text(`Location: ${projectInfo.location}`, 14, 35);
 
-    const tableRows = computedData.processed.filter(s => s.amount !== 0).map(s => [
-      s.title, s.unit, s.totalQty.toFixed(2), s.rate, s.amount.toLocaleString()
-    ]);
+    // Only include items where Rate > 0
+    const tableRows = computedData.processed
+      .filter(s => s.rateVal > 0)
+      .map(s => [s.title, s.unit, s.totalQty.toFixed(2), s.rateVal.toLocaleString(), s.amount.toLocaleString()]);
 
     autoTable(doc, {
-      startY: 55,
-      head: [['Description of Work', 'Unit', 'Total Qty', 'Rate', 'Amount (Rs)']],
+      startY: 45,
+      head: [['Description of Work', 'Unit', 'Qty', 'Rate', 'Amount (Rs)']],
       body: tableRows,
       theme: 'grid',
-      headStyles: { fillColor: [0, 51, 102] }
+      headStyles: { fillColor: [30, 41, 59] }
     });
 
-    doc.save(`${projectInfo.name || 'Estimate'}_Report.pdf`);
-  };
-
-  const shareWhatsApp = () => {
-    let msg = `*UNIQ DESIGNS - ESTIMATE*\n*Project:* ${projectInfo.name}\n*Total:* ₹${computedData.grandTotal.toLocaleString()}\n\n`;
-    computedData.processed.filter(s => s.amount !== 0).forEach(s => {
-      msg += `✅ ${s.title}\nQty: ${s.totalQty.toFixed(2)} | Amt: ₹${s.amount.toLocaleString()}\n\n`;
-    });
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    doc.save(`Estimate_${projectInfo.name || 'Report'}.pdf`);
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f8fafc', minHeight: '100vh', paddingBottom: '180px', fontFamily: 'Arial' }}>
+    <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f1f5f9', minHeight: '100vh', paddingBottom: '180px', fontFamily: 'Arial' }}>
       
-      {/* PROFESSIONAL HEADER */}
-      <div style={{ background: '#003366', color: 'white', padding: '25px 15px', textAlign: 'center' }}>
-        <h2 style={{ margin: 0, fontSize: '20px', letterSpacing: '1px' }}>UNIQ DESIGNS & CONSTRUCTIONS</h2>
-        <p style={{ margin: '8px 0', fontSize: '13px', fontWeight: 'bold', color: '#ffd700' }}>DETAILED CONSTRUCTION ESTIMATE</p>
-        <button onClick={clearAllData} style={{ marginTop: '10px', background: '#dc3545', color: 'white', border: 'none', padding: '6px 15px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
-          🗑️ CLEAR ALL DATA
+      {/* HEADER */}
+      <div style={{ background: '#1e293b', color: 'white', padding: '30px 15px', textAlign: 'center' }}>
+        <h2 style={{ margin: 0, fontSize: '18px', letterSpacing: '0.5px', fontWeight: 'bold' }}>DETAILED CONSTRUCTION ESTIMATE</h2>
+        <button onClick={() => { if(window.confirm("Reset all?")) { localStorage.clear(); window.location.reload(); }}} style={resetBtnStyle}>
+          RESET ALL DATA
         </button>
       </div>
 
-      {/* PROJECT INFO */}
-      <div style={{ background: '#fff', padding: '15px', borderBottom: '2px solid #003366', display: 'grid', gap: '8px' }}>
+      {/* INFO SECTION */}
+      <div style={{ background: '#fff', padding: '15px', borderBottom: '1px solid #e2e8f0', display: 'grid', gap: '8px' }}>
         <input placeholder="Project Name" value={projectInfo.name} style={headerInput} onChange={e => setProjectInfo({...projectInfo, name: e.target.value})} />
         <input placeholder="Client Name" value={projectInfo.client} style={headerInput} onChange={e => setProjectInfo({...projectInfo, client: e.target.value})} />
-        <input placeholder="Location" value={projectInfo.location} style={headerInput} onChange={e => setProjectInfo({...projectInfo, location: e.target.value})} />
       </div>
 
-      {/* EDITABLE 38 CONTENTS */}
+      {/* ITEMS */}
       {computedData.processed.map((sec) => (
-        <div key={sec.id} style={{ background: '#fff', margin: '15px 10px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
-          <div style={{ background: '#007bff', padding: '8px' }}>
-            <textarea 
-              value={sec.title} 
-              onChange={(e) => updateSectionTitle(sec.id, e.target.value)}
-              style={{ width: '100%', background: 'transparent', border: 'none', color: 'white', fontWeight: 'bold', fontSize: '14px', resize: 'none' }}
-              rows={2}
-            />
+        <div key={sec.id} style={{ background: '#fff', margin: '12px 10px', borderRadius: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
+          <div style={{ background: '#334155', padding: '10px' }}>
+            <textarea value={sec.title} onChange={(e) => updateSection(sec.id, 'title', e.target.value)} style={titleTextarea} rows={1} />
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <select value={sec.unit} onChange={(e) => updateSection(sec.id, 'unit', e.target.value)} style={unitSelect}>
+                <option>M3</option><option>M2</option><option>Nos</option><option>Rft</option>
+              </select>
+              <input placeholder="Rate Rs." type="number" value={sec.rate} onChange={(e) => updateSection(sec.id, 'rate', e.target.value)} style={rateInput} />
+            </div>
           </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-            <thead style={{ background: '#f1f5f9' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+            <thead style={{ background: '#f8fafc' }}>
               <tr>
-                <th style={tdStyle}>Description</th><th style={tdStyle}>Nos</th><th style={tdStyle}>L</th><th style={tdStyle}>B</th><th style={tdStyle}>D</th><th style={tdStyle}>Action</th>
+                <th style={tdStyle}>Desc</th><th style={tdStyle}>Nos</th><th style={tdStyle}>L</th><th style={tdStyle}>B</th><th style={tdStyle}>D</th><th style={tdStyle}></th>
               </tr>
             </thead>
             <tbody>
@@ -165,43 +148,50 @@ export default function UniqMasterEstimator() {
                   <td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInput} /></td>
                   <td style={tdStyle}><input type="number" value={m.b} onChange={e => updateM(sec.id, m.id, 'b', e.target.value)} style={cellInput} /></td>
                   <td style={tdStyle}><input type="number" value={m.d} onChange={e => updateM(sec.id, m.id, 'd', e.target.value)} style={cellInput} /></td>
-                  <td style={tdStyle}>
-                    <button onClick={() => deleteRow(sec.id, m.id)} style={{ border: 'none', background: 'none', color: '#ef4444', fontSize: '14px' }}>🗑️</button>
-                  </td>
+                  <td style={tdStyle}><button onClick={() => deleteRow(sec.id, m.id)} style={{ border: 'none', background: 'none' }}>🗑️</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          <div style={{ padding: '12px', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => addRow(sec.id, 'Add')} style={btnAction}>+ Add</button>
-              <button onClick={() => addRow(sec.id, 'Ded')} style={{ ...btnAction, background: '#ef4444' }}>- Ded</button>
+          <div style={{ padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '5px' }}>
+              <button onClick={() => addRow(sec.id, 'Add')} style={btnSml}>+ Add</button>
+              <button onClick={() => addRow(sec.id, 'Ded')} style={{ ...btnSml, background: '#ef4444' }}>- Ded</button>
             </div>
-            <div style={{ textAlign: 'right', fontSize: '12px' }}>
-              Rate: <input type="number" value={sec.rate} onChange={e => setSections(sections.map(s => s.id === sec.id ? {...s, rate: e.target.value} : s))} style={{ width: '70px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
-              <div style={{ fontWeight: 'bold', marginTop: '4px', color: '#1e293b' }}>Qty: {sec.totalQty.toFixed(2)} | ₹{sec.amount.toLocaleString()}</div>
+            <div style={{ textAlign: 'right', fontSize: '12px', fontWeight: 'bold' }}>
+               {sec.totalQty.toFixed(2)} {sec.unit} | ₹{sec.amount.toLocaleString()}
             </div>
           </div>
         </div>
       ))}
 
-      {/* STICKY ACTION FOOTER */}
-      <div style={{ position: 'fixed', bottom: 0, width: '100%', maxWidth: '600px', background: 'white', padding: '15px', borderTop: '3px solid #003366', boxShadow: '0 -5px 15px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <span style={{ fontWeight: 'bold' }}>GRAND TOTAL:</span>
-          <span style={{ fontWeight: 'bold', color: '#b91c1c', fontSize: '22px' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
+      {/* FOOTER */}
+      <div style={footerStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+          <span style={{ fontWeight: 'bold', color: '#64748b' }}>TOTAL ESTIMATE:</span>
+          <span style={{ fontWeight: 'bold', color: '#0f172a', fontSize: '20px' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          <button onClick={generatePDF} style={{ padding: '14px', background: '#1e293b', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>DOWNLOAD PDF 📄</button>
-          <button onClick={shareWhatsApp} style={{ padding: '14px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>WHATSAPP ✅</button>
+          <button onClick={generatePDF} style={mainBtn}>PDF REPORT 📄</button>
+          <button onClick={() => {
+            let msg = `*DETAILED ESTIMATE*\n*Project:* ${projectInfo.name}\n*Total:* ₹${computedData.grandTotal.toLocaleString()}\n\n`;
+            computedData.processed.filter(s => s.rateVal > 0).forEach(s => msg += `✅ ${s.title}: ₹${s.amount.toLocaleString()}\n`);
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+          }} style={{ ...mainBtn, background: '#22c55e' }}>WHATSAPP ✅</button>
         </div>
       </div>
     </div>
   );
 }
 
-const tdStyle: React.CSSProperties = { border: '1px solid #e2e8f0', padding: '6px', textAlign: 'center' };
-const cellInput: React.CSSProperties = { width: '100%', border: 'none', textAlign: 'center', fontSize: '12px', background: 'transparent', outline: 'none' };
-const headerInput: React.CSSProperties = { padding: '12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' };
-const btnAction: React.CSSProperties = { padding: '6px 12px', background: '#10b981', color: 'white', border: 'none', borderRadius: '5px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' };
+const tdStyle = { border: '1px solid #e2e8f0', padding: '6px', textAlign: 'center' as const };
+const cellInput = { width: '100%', border: 'none', textAlign: 'center' as const, fontSize: '11px', background: 'transparent' };
+const headerInput = { padding: '12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' };
+const titleTextarea = { width: '100%', background: 'transparent', border: 'none', color: 'white', fontWeight: 'bold' as const, fontSize: '14px', resize: 'none' as const };
+const unitSelect = { padding: '4px', borderRadius: '4px', border: 'none', fontSize: '11px', background: '#f1f5f9' };
+const rateInput = { padding: '4px 8px', borderRadius: '4px', border: 'none', fontSize: '11px', width: '90px' };
+const btnSml = { padding: '5px 10px', background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' as const };
+const footerStyle = { position: 'fixed' as const, bottom: 0, width: '100%', maxWidth: '600px', background: 'white', padding: '20px', borderTop: '2px solid #1e293b', boxShadow: '0 -10px 15px rgba(0,0,0,0.05)' };
+const mainBtn = { padding: '14px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '14px' };
+const resetBtnStyle = { marginTop: '15px', background: '#ef4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' as const };
