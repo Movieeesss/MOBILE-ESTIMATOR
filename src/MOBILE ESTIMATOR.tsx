@@ -24,12 +24,12 @@ const INITIAL_TITLES = [
 
 export default function DetailedConstructionEstimator() {
   const [projectInfo, setProjectInfo] = useState(() => {
-    const saved = localStorage.getItem('est_final_v10_info');
+    const saved = localStorage.getItem('est_final_v11_info');
     return saved ? JSON.parse(saved) : { name: "", client: "" };
   });
 
   const [sections, setSections] = useState(() => {
-    const saved = localStorage.getItem('est_final_v10_sections');
+    const saved = localStorage.getItem('est_final_v11_sections');
     return saved ? JSON.parse(saved) : INITIAL_TITLES.map((title, idx) => ({
       id: idx,
       title: title,
@@ -41,8 +41,8 @@ export default function DetailedConstructionEstimator() {
   });
 
   useEffect(() => {
-    localStorage.setItem('est_final_v10_info', JSON.stringify(projectInfo));
-    localStorage.setItem('est_final_v10_sections', JSON.stringify(sections));
+    localStorage.setItem('est_final_v11_info', JSON.stringify(projectInfo));
+    localStorage.setItem('est_final_v11_sections', JSON.stringify(sections));
   }, [projectInfo, sections]);
 
   const computedData = useMemo(() => {
@@ -60,8 +60,8 @@ export default function DetailedConstructionEstimator() {
           const d = parseFloat(m.d) || 0;
 
           if (sec.unit === 'M3') val = nos * l * b * d;
-          else if (sec.unit === 'M2') val = nos * b * d;
-          else if (sec.unit === 'Rft') val = nos * l;
+          else if (sec.unit === 'M2') val = b * d;
+          else if (sec.unit === 'Rft') val = l;
           else if (sec.unit === 'Nos') val = nos;
           
           return m.type === 'Add' ? acc + val : acc - val;
@@ -105,7 +105,7 @@ export default function DetailedConstructionEstimator() {
 
     autoTable(doc, {
       startY: 38,
-      head: [['Description', 'Unit', 'Qty', 'Rate', 'Amount (Rs.)']],
+      head: [['Work Description', 'Unit', 'Qty', 'Rate', 'Amount (Rs.)']],
       body: tableRows,
       theme: 'grid',
       headStyles: { fillColor: [15, 23, 42], halign: 'center' }
@@ -140,7 +140,7 @@ export default function DetailedConstructionEstimator() {
 
             {sec.unit === 'Lumpsum' ? (
               <div style={{ padding: '15px' }}>
-                <input type="number" placeholder="Enter Total Qty" value={sec.lsQty} onChange={e => updateSection(sec.id, 'lsQty', e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontWeight: 'bold' }} />
+                <input type="number" placeholder="Enter Total Quantity" value={sec.lsQty} onChange={e => updateSection(sec.id, 'lsQty', e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontWeight: 'bold' }} />
               </div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
@@ -182,7 +182,7 @@ export default function DetailedConstructionEstimator() {
       </div>
 
       <div style={stickyFoot}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#64748b' }}>ESTIMATE TOTAL</span>
           <span style={{ fontSize: '22px', fontWeight: '900', color: '#0f172a' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
         </div>
