@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -22,21 +22,40 @@ const INITIAL_TITLES = [
   "36. Main gate", "37. Electrical - LS", "38. Sanitary - LS"
 ];
 
-export default function UniqUltimateEstimator() {
-  const [project, setProject] = useState({ name: "", client: "" });
-  const [sections, setSections] = useState(INITIAL_TITLES.map((title, idx) => ({
-    id: idx,
-    title: title,
-    unit: 'M3',
-    rate: '0',
-    measurements: [{ id: Date.now() + idx, nos: '1', l: '0', b: '0', d: '0' }]
-  })));
+export default function UniqProfessionalEstimator() {
+  // 1. Initialize from LocalStorage or use Defaults
+  const [projectInfo, setProjectInfo] = useState(() => {
+    const saved = localStorage.getItem('uniq_project_info');
+    return saved ? JSON.parse(saved) : { name: "", client: "", location: "" };
+  });
+
+  const [sections, setSections] = useState(() => {
+    const saved = localStorage.getItem('uniq_sections');
+    return saved ? JSON.parse(saved) : INITIAL_TITLES.map((title, idx) => ({
+      id: idx,
+      title: title,
+      unit: 'M3',
+      rate: '0',
+      measurements: [{ id: Date.now() + idx, type: 'Add', label: 'Main', nos: '1', l: '0', b: '0', d: '0' }]
+    }));
+  });
+
+  // 2. Auto-Save to LocalStorage whenever data changes
+  useEffect(() => {
+    localStorage.setItem('uniq_project_info', JSON.stringify(projectInfo));
+  }, [projectInfo]);
+
+  useEffect(() => {
+    localStorage.setItem('uniq_sections', JSON.stringify(sections));
+  }, [sections]);
 
   const computedData = useMemo(() => {
     let grandTotal = 0;
     const processed = sections.map(sec => {
-      const totalQty = sec.measurements.reduce((acc, m) => 
-        acc + (parseFloat(m.nos) || 0) * (parseFloat(m.l) || 0) * (parseFloat(m.b) || 0) * (parseFloat(m.d) || 0), 0);
+      const totalQty = sec.measurements.reduce((acc, m) => {
+        const val = (parseFloat(m.nos) || 0) * (parseFloat(m.l) || 0) * (parseFloat(m.b) || 0) * (parseFloat(m.d) || 0);
+        return m.type === 'Add' ? acc + val : acc - val;
+      }, 0);
       const amount = totalQty * (parseFloat(sec.rate) || 0);
       grandTotal += amount;
       return { ...sec, totalQty, amount };
@@ -44,98 +63,102 @@ export default function UniqUltimateEstimator() {
     return { processed, grandTotal };
   }, [sections]);
 
-  const addMeasurement = (secId: number) => {
+  const addRow = (secId: number, type: 'Add' | 'Ded') => {
     setSections(sections.map(s => s.id === secId ? 
-      { ...s, measurements: [...s.measurements, { id: Date.now(), nos: '1', l: '0', b: '0', d: '0' }] } : s));
+      { ...s, measurements: [...s.measurements, { id: Date.now(), type, label: type === 'Ded' ? 'Deduction' : 'Extra', nos: '1', l: '0', b: '0', d: '0' }] } : s));
   };
 
-  const updateMeasurement = (secId: number, mId: number, field: string, val: string) => {
+  const updateM = (secId: number, mId: number, field: string, val: string) => {
     setSections(sections.map(s => s.id === secId ? {
       ...s, measurements: s.measurements.map(m => m.id === mId ? { ...m, [field]: val } : m)
     } : s));
   };
 
-  const generatePDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text("UNIQ DESIGNS - PROJECT ESTIMATE", 14, 20);
-    doc.setFontSize(10);
-    doc.text(`Project: ${project.name || 'N/A'}`, 14, 30);
-    doc.text(`Client: ${project.client || 'N/A'}`, 14, 35);
+  const clearAllData = () => {
+    if(window.confirm("Delete all saved data and start new estimate?")) {
+      localStorage.removeItem('uniq_project_info');
+      localStorage.removeItem('uniq_sections');
+      window.location.reload();
+    }
+  };
 
-    const body = computedData.processed.filter(s => s.amount > 0).map(s => [
-      s.title, s.unit, s.totalQty.toFixed(3), s.rate, s.amount.toLocaleString()
-    ]);
-
-    autoTable(doc, {
-      startY: 45,
-      head: [['Description', 'Unit', 'Total Qty', 'Rate (Rs)', 'Amount (Rs)']],
-      body: body,
-      theme: 'grid',
-      headStyles: { fillColor: [7, 94, 84] }
+  const shareWhatsApp = () => {
+    let msg = `*UNIQ DESIGNS - ESTIMATE*\nProject: ${projectInfo.name}\nTotal: ₹${computedData.grandTotal.toLocaleString()}\n\n`;
+    computedData.processed.filter(s => s.amount > 0).forEach(s => {
+      msg += `✅ ${s.title}: ${s.totalQty.toFixed(2)} ${s.unit} = ₹${s.amount.toLocaleString()}\n`;
     });
-
-    doc.save(`${project.name || 'Estimate'}.pdf`);
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   return (
-    <div style={{ maxWidth: '500px', margin: '0 auto', background: '#f5f5f5', minHeight: '100vh', paddingBottom: '120px', fontFamily: 'sans-serif' }}>
-      <header style={{ background: '#075E54', color: 'white', padding: '15px', position: 'sticky', top: 0, zIndex: 100, display: 'flex', justifyContent: 'space-between' }}>
-        <b>UNIQ ESTIMATOR PRO</b>
-        <button onClick={() => window.location.reload()} style={{ background: 'red', border: 'none', color: 'white', fontSize: '10px', padding: '4px 8px', borderRadius: '4px' }}>RESET</button>
-      </header>
+    <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f4f6f9', minHeight: '100vh', paddingBottom: '160px', fontFamily: 'Arial' }}>
+      
+      <div style={{ background: '#003366', color: 'white', padding: '20px', textAlign: 'center', position: 'relative' }}>
+        <h2 style={{ margin: 0, fontSize: '18px' }}>UNIQ DESIGNS & CONSTRUCTIONS</h2>
+        <p style={{ margin: '5px 0', fontSize: '12px', opacity: 0.8 }}>DETAILED MEASUREMENT SHEET</p>
+        <button onClick={clearAllData} style={{ position: 'absolute', right: '10px', top: '10px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', fontSize: '10px', padding: '5px' }}>CLEAR ALL</button>
+      </div>
 
-      <div style={{ padding: '15px', background: 'white', borderBottom: '1px solid #ddd' }}>
-        <input placeholder="Project Name" onChange={e => setProject({...project, name: e.target.value})} style={inputStyle} />
-        <input placeholder="Client Name" onChange={e => setProject({...project, client: e.target.value})} style={inputStyle} />
+      <div style={{ background: '#fff', padding: '15px', borderBottom: '2px solid #003366', display: 'grid', gap: '10px' }}>
+        <input placeholder="Project Name" value={projectInfo.name} style={headerInput} onChange={e => setProjectInfo({...projectInfo, name: e.target.value})} />
+        <input placeholder="Client Name" value={projectInfo.client} style={headerInput} onChange={e => setProjectInfo({...projectInfo, client: e.target.value})} />
+        <input placeholder="Location" value={projectInfo.location} style={headerInput} onChange={e => setProjectInfo({...projectInfo, location: e.target.value})} />
       </div>
 
       {computedData.processed.map((sec) => (
-        <div key={sec.id} style={{ background: 'white', margin: '10px', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-          <div style={{ background: '#f8f9fa', padding: '10px', borderBottom: '1px solid #eee' }}>
-            <textarea value={sec.title} onChange={e => setSections(sections.map(s => s.id === sec.id ? {...s, title: e.target.value} : s))} style={{ width: '100%', border: 'none', background: 'transparent', fontWeight: 'bold', fontSize: '13px' }} rows={2} />
-            <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-              <select value={sec.unit} onChange={e => setSections(sections.map(s => s.id === sec.id ? {...s, unit: e.target.value} : s))} style={{ fontSize: '11px' }}>
-                <option>M3</option><option>M2</option><option>Rft</option><option>Nos</option>
-              </select>
-              <input placeholder="Rate Rs." onChange={e => setSections(sections.map(s => s.id === sec.id ? {...s, rate: e.target.value} : s))} style={{ border: '1px solid #ccc', borderRadius: '4px', width: '80px', padding: '2px 5px', fontSize: '11px' }} />
-            </div>
-          </div>
+        <div key={sec.id} style={{ background: '#fff', margin: '15px 10px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'hidden', border: '1px solid #ddd' }}>
+          <div style={{ background: '#007bff', color: 'white', padding: '10px', fontSize: '14px', fontWeight: 'bold' }}>{sec.title}</div>
 
-          {sec.measurements.map((m, idx) => (
-            <div key={m.id} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', background: '#ddd', borderBottom: '1px solid #eee' }}>
-              <MiniInput label="Nos" val={m.nos} onChange={v => updateMeasurement(sec.id, m.id, 'nos', v)} />
-              <MiniInput label="L (m)" val={m.l} onChange={v => updateMeasurement(sec.id, m.id, 'l', v)} />
-              <MiniInput label="B (m)" val={m.b} onChange={v => updateMeasurement(sec.id, m.id, 'b', v)} />
-              <MiniInput label="D (m)" val={m.d} onChange={v => updateMeasurement(sec.id, m.id, 'd', v)} />
-            </div>
-          ))}
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+            <thead style={{ background: '#e9ecef' }}>
+              <tr>
+                <th style={tdStyle}>Description</th>
+                <th style={tdStyle}>Nos</th><th style={tdStyle}>L</th><th style={tdStyle}>B</th><th style={tdStyle}>D</th><th style={tdStyle}>Qty</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sec.measurements.map(m => (
+                <tr key={m.id} style={{ background: m.type === 'Ded' ? '#fff0f0' : 'white' }}>
+                  <td style={tdStyle}><input value={m.label} onChange={e => updateM(sec.id, m.id, 'label', e.target.value)} style={cellInput} /></td>
+                  <td style={tdStyle}><input type="number" value={m.nos} onChange={e => updateM(sec.id, m.id, 'nos', e.target.value)} style={cellInput} /></td>
+                  <td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInput} /></td>
+                  <td style={tdStyle}><input type="number" value={m.b} onChange={e => updateM(sec.id, m.id, 'b', e.target.value)} style={cellInput} /></td>
+                  <td style={tdStyle}><input type="number" value={m.d} onChange={e => updateM(sec.id, m.id, 'd', e.target.value)} style={cellInput} /></td>
+                  <td style={{ ...tdStyle, fontWeight: 'bold' }}>
+                    {(m.type === 'Ded' ? '-' : '') + ((parseFloat(m.nos)||0)*(parseFloat(m.l)||0)*(parseFloat(m.b)||0)*(parseFloat(m.d)||0)).toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-          <div style={{ padding: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <button onClick={() => addMeasurement(sec.id)} style={{ color: '#075E54', border: '1px solid #075E54', background: 'white', fontSize: '10px', borderRadius: '4px', padding: '4px 8px' }}>+ ADD SUB-ROW</button>
-            <div style={{ fontSize: '12px' }}>Total: <b>{sec.amount.toLocaleString()} Rs.</b></div>
+          <div style={{ padding: '10px', background: '#f8f9fa', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #ddd' }}>
+            <div style={{ display: 'flex', gap: '5px' }}>
+              <button onClick={() => addRow(sec.id, 'Add')} style={btnSmall}>+ Add</button>
+              <button onClick={() => addRow(sec.id, 'Ded')} style={{ ...btnSmall, background: '#dc3545' }}>- Ded</button>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '11px' }}>Rate: <input type="number" value={sec.rate} onChange={e => setSections(sections.map(s => s.id === sec.id ? {...s, rate: e.target.value} : s))} style={{ width: '60px' }} /></div>
+              <div style={{ fontWeight: 'bold', color: '#003366' }}>Net Qty: {sec.totalQty.toFixed(2)} | ₹{sec.amount.toLocaleString()}</div>
+            </div>
           </div>
         </div>
       ))}
 
-      <div style={{ position: 'fixed', bottom: 0, width: '100%', maxWidth: '500px', background: 'white', padding: '15px', borderTop: '2px solid #075E54', boxShadow: '0 -2px 10px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontWeight: 'bold' }}>
-          <span>GRAND TOTAL:</span>
-          <span style={{ color: '#d93025', fontSize: '18px' }}>Rs. {computedData.grandTotal.toLocaleString()}</span>
+      <div style={{ position: 'fixed', bottom: 0, width: '100%', maxWidth: '600px', background: 'white', padding: '15px', borderTop: '3px solid #003366', boxShadow: '0 -5px 15px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <span style={{ fontWeight: 'bold' }}>GRAND TOTAL:</span>
+          <span style={{ fontWeight: 'bold', color: '#d93025', fontSize: '20px' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
         </div>
-        <button onClick={generatePDF} style={{ width: '100%', padding: '12px', background: '#333', color: 'white', borderRadius: '8px', fontWeight: 'bold' }}>DOWNLOAD PDF REPORT 📄</button>
+        <button onClick={shareWhatsApp} style={{ width: '100%', padding: '12px', background: '#25D366', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}>
+          SHARE ON WHATSAPP ✅
+        </button>
       </div>
     </div>
   );
 }
 
-function MiniInput({ label, val, onChange }: any) {
-  return (
-    <div style={{ background: 'white', padding: '4px', textAlign: 'center' }}>
-      <div style={{ fontSize: '8px', color: '#888' }}>{label}</div>
-      <input type="number" value={val} onChange={e => onChange(e.target.value)} style={{ width: '100%', border: 'none', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }} />
-    </div>
-  );
-}
-
-const inputStyle = { width: '100%', padding: '10px', marginBottom: '8px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '14px', boxSizing: 'border-box' as 'border-box' };
+const tdStyle: React.CSSProperties = { border: '1px solid #ddd', padding: '4px', textAlign: 'center' };
+const cellInput: React.CSSProperties = { width: '100%', border: 'none', textAlign: 'center', fontSize: '12px', outline: 'none', background: 'transparent' };
+const headerInput: React.CSSProperties = { padding: '10px', border: '1px solid #ccc', borderRadius: '4px' };
+const btnSmall: React.CSSProperties = { padding: '4px 8px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' };
