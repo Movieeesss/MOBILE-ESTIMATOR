@@ -24,12 +24,12 @@ const INITIAL_TITLES = [
 
 export default function DetailedConstructionEstimator() {
   const [projectInfo, setProjectInfo] = useState(() => {
-    const saved = localStorage.getItem('est_v13_info');
+    const saved = localStorage.getItem('est_v14_info');
     return saved ? JSON.parse(saved) : { name: "", client: "" };
   });
 
   const [sections, setSections] = useState(() => {
-    const saved = localStorage.getItem('est_v13_sections');
+    const saved = localStorage.getItem('est_v14_sections');
     return saved ? JSON.parse(saved) : INITIAL_TITLES.map((title, idx) => ({
       id: idx,
       title: title,
@@ -41,8 +41,8 @@ export default function DetailedConstructionEstimator() {
   });
 
   useEffect(() => {
-    localStorage.setItem('est_v13_info', JSON.stringify(projectInfo));
-    localStorage.setItem('est_v13_sections', JSON.stringify(sections));
+    localStorage.setItem('est_v14_info', JSON.stringify(projectInfo));
+    localStorage.setItem('est_v14_sections', JSON.stringify(sections));
   }, [projectInfo, sections]);
 
   const computedData = useMemo(() => {
@@ -95,29 +95,24 @@ export default function DetailedConstructionEstimator() {
     const doc = new jsPDF();
     doc.setFontSize(14);
     doc.text("DETAILED CONSTRUCTION ESTIMATE", 105, 15, { align: 'center' });
-    doc.setFontSize(10);
-    doc.text(`Project: ${projectInfo.name || 'N/A'}`, 14, 25);
-    doc.text(`Client: ${projectInfo.client || 'N/A'}`, 14, 30);
-
     const tableRows = computedData.processed
       .filter(s => Math.abs(s.totalQty) > 0)
       .map(s => [s.title, s.unit, s.totalQty.toFixed(2), s.rateVal > 0 ? s.rateVal.toLocaleString() : "—", s.amount > 0 ? s.amount.toLocaleString() : "—"]);
-
     autoTable(doc, {
-      startY: 38,
+      startY: 35,
       head: [['Description', 'Unit', 'Qty', 'Rate', 'Amount (Rs.)']],
       body: tableRows,
       theme: 'grid',
-      headStyles: { fillColor: [15, 23, 42], halign: 'center' }
+      headStyles: { fillColor: [15, 23, 42] }
     });
-    doc.save(`${projectInfo.name || 'Estimate'}.pdf`);
+    doc.save("Estimate.pdf");
   };
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f1f5f9', minHeight: '100vh', paddingBottom: '160px', position: 'relative' }}>
       <div style={{ background: '#0f172a', color: 'white', padding: '20px 15px', textAlign: 'center' }}>
         <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>DETAILED CONSTRUCTION ESTIMATE</h2>
-        <button onClick={() => { if(window.confirm("Reset Data?")) { localStorage.clear(); window.location.reload(); }}} style={resetStyle}>RESET ALL</button>
+        <button onClick={() => { if(window.confirm("Reset?")) { localStorage.clear(); window.location.reload(); }}} style={resetStyle}>RESET ALL</button>
       </div>
 
       <div style={{ background: '#fff', padding: '12px', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -127,7 +122,7 @@ export default function DetailedConstructionEstimator() {
 
       <div style={{ padding: '8px' }}>
         {computedData.processed.map((sec) => (
-          <div key={sec.id} style={{ background: '#fff', marginBottom: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+          <div key={sec.id} style={{ background: '#fff', marginBottom: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', overflow: 'hidden' }}>
             <div style={{ background: '#334155', padding: '10px' }}>
               <textarea value={sec.title} onChange={(e) => updateSection(sec.id, 'title', e.target.value)} style={titleArea} rows={1} />
               <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
@@ -140,40 +135,42 @@ export default function DetailedConstructionEstimator() {
 
             {sec.unit === 'Lumpsum' ? (
               <div style={{ padding: '15px' }}>
-                <input type="number" placeholder="Enter Total Qty" value={sec.lsQty} onChange={e => updateSection(sec.id, 'lsQty', e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontWeight: 'bold' }} />
+                <input type="number" placeholder="Total Qty" value={sec.lsQty} onChange={e => updateSection(sec.id, 'lsQty', e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px' }} />
               </div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                <thead style={{ background: '#f8fafc' }}>
-                  <tr>
-                    <th style={tdStyle}>Desc</th>
-                    <th style={tdStyle}>Nos</th>
-                    {sec.unit === 'Rft' && <th style={tdStyle}>L</th>}
-                    {sec.unit === 'M2' && <><th style={tdStyle}>B</th><th style={tdStyle}>D</th></>}
-                    {sec.unit === 'M3' && <><th style={tdStyle}>L</th><th style={tdStyle}>B</th><th style={tdStyle}>D</th></>}
-                    <th style={tdStyle}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sec.measurements.map(m => (
-                    <tr key={m.id} style={{ background: m.type === 'Ded' ? '#fff1f2' : 'white' }}>
-                      <td style={tdStyle}><input value={m.label} onChange={e => updateM(sec.id, m.id, 'label', e.target.value)} style={cellInp} /></td>
-                      <td style={tdStyle}><input type="number" value={m.nos} onChange={e => updateM(sec.id, m.id, 'nos', e.target.value)} style={cellInp} /></td>
-                      {sec.unit === 'Rft' && <td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInp} /></td>
-                      {sec.unit === 'M2' && <><td style={tdStyle}><input type="number" value={m.b} onChange={e => updateM(sec.id, m.id, 'b', e.target.value)} style={cellInp} /></td><td style={tdStyle}><input type="number" value={m.d} onChange={e => updateM(sec.id, m.id, 'd', e.target.value)} style={cellInp} /></td></>}
-                      {sec.unit === 'M3' && <><td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInp} /></td><td style={tdStyle}><input type="number" value={m.b} onChange={e => updateM(sec.id, m.id, 'b', e.target.value)} style={cellInp} /></td><td style={tdStyle}><input type="number" value={m.d} onChange={e => updateM(sec.id, m.id, 'd', e.target.value)} style={cellInp} /></td></>}
-                      <td style={tdStyle}><button onClick={() => deleteRow(sec.id, m.id)} style={{ border: 'none', background: 'transparent' }}>🗑️</button></td>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                  <thead style={{ background: '#f8fafc' }}>
+                    <tr>
+                      <th style={tdStyle}>Desc</th>
+                      <th style={tdStyle}>Nos</th>
+                      {sec.unit === 'Rft' && <th style={tdStyle}>L</th>}
+                      {sec.unit === 'M2' && <><th style={tdStyle}>B</th><th style={tdStyle}>D</th></>}
+                      {sec.unit === 'M3' && <><th style={tdStyle}>L</th><th style={tdStyle}>B</th><th style={tdStyle}>D</th></>}
+                      <th style={tdStyle}></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {sec.measurements.map(m => (
+                      <tr key={m.id} style={{ background: m.type === 'Ded' ? '#fff1f2' : 'white' }}>
+                        <td style={tdStyle}><input value={m.label} onChange={e => updateM(sec.id, m.id, 'label', e.target.value)} style={cellInp} /></td>
+                        <td style={tdStyle}><input type="number" value={m.nos} onChange={e => updateM(sec.id, m.id, 'nos', e.target.value)} style={cellInp} /></td>
+                        {sec.unit === 'Rft' && <td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInp} /></td>
+                        {sec.unit === 'M2' && <><td style={tdStyle}><input type="number" value={m.b} onChange={e => updateM(sec.id, m.id, 'b', e.target.value)} style={cellInp} /></td><td style={tdStyle}><input type="number" value={m.d} onChange={e => updateM(sec.id, m.id, 'd', e.target.value)} style={cellInp} /></td></>}
+                        {sec.unit === 'M3' && <><td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInp} /></td><td style={tdStyle}><input type="number" value={m.b} onChange={e => updateM(sec.id, m.id, 'b', e.target.value)} style={cellInp} /></td><td style={tdStyle}><input type="number" value={m.d} onChange={e => updateM(sec.id, m.id, 'd', e.target.value)} style={cellInp} /></td></>}
+                        <td style={tdStyle}><button onClick={() => deleteRow(sec.id, m.id)} style={{ border: 'none', background: 'transparent' }}>🗑️</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             <div style={{ padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
               <div style={{ display: 'flex', gap: '6px' }}>
                 {sec.unit !== 'Lumpsum' && <><button onClick={() => addRow(sec.id, 'Add')} style={addBtn}>+ Add</button><button onClick={() => addRow(sec.id, 'Ded')} style={{ ...addBtn, background: '#e11d48' }}>- Ded</button></>}
               </div>
-              <div style={{ textAlign: 'right', fontSize: '12px', fontWeight: 'bold', color: '#0f172a' }}>
+              <div style={{ textAlign: 'right', fontSize: '11px', fontWeight: 'bold' }}>
                  {sec.totalQty.toFixed(2)} {sec.unit} | ₹{sec.amount.toLocaleString()}
               </div>
             </div>
@@ -182,14 +179,14 @@ export default function DetailedConstructionEstimator() {
       </div>
 
       <div style={stickyFoot}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#64748b' }}>ESTIMATE TOTAL</span>
-          <span style={{ fontSize: '22px', fontWeight: '900', color: '#0f172a' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b' }}>TOTAL</span>
+          <span style={{ fontSize: '20px', fontWeight: '900' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-          <button onClick={generatePDF} style={mainBtn}>DOWNLOAD PDF 📄</button>
+          <button onClick={generatePDF} style={mainBtn}>PDF 📄</button>
           <button onClick={() => {
-            let msg = `*CONSTRUCTION ESTIMATE*\n*Project:* ${projectInfo.name}\n*Total:* ₹${computedData.grandTotal.toLocaleString()}\n\n`;
+            let msg = `*ESTIMATE*\n*Project:* ${projectInfo.name}\n*Total:* ₹${computedData.grandTotal.toLocaleString()}\n\n`;
             computedData.processed.filter(s => s.totalQty !== 0).forEach(s => msg += `✅ ${s.title}: ${s.totalQty.toFixed(2)} ${s.unit}\n`);
             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
           }} style={{ ...mainBtn, background: '#16a34a' }}>WHATSAPP ✅</button>
@@ -199,14 +196,13 @@ export default function DetailedConstructionEstimator() {
   );
 }
 
-// Styles
 const tdStyle = { border: '1px solid #e2e8f0', padding: '4px', textAlign: 'center' as const };
 const cellInp = { width: '100%', border: 'none', textAlign: 'center' as const, fontSize: '12px', background: 'transparent' };
 const headerInp = { padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' };
 const titleArea = { width: '100%', background: 'transparent', border: 'none', color: 'white', fontWeight: 'bold' as const, fontSize: '13px', resize: 'none' as const };
 const dropStyle = { padding: '4px', borderRadius: '4px', border: 'none', fontSize: '12px', background: '#f1f5f9' };
-const rateInp = { padding: '4px 8px', borderRadius: '4px', border: 'none', fontSize: '12px', width: '90px' };
-const addBtn = { padding: '6px 10px', background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' as const };
-const stickyFoot = { position: 'fixed' as const, bottom: 0, left: 0, right: 0, background: 'white', padding: '16px 20px', borderTop: '2px solid #0f172a', boxShadow: '0 -10px 15px rgba(0,0,0,0.1)', zIndex: 1000 };
-const mainBtn = { padding: '14px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold' as const, fontSize: '14px' };
+const rateInp = { padding: '4px 8px', borderRadius: '4px', border: 'none', fontSize: '12px', width: '80px' };
+const addBtn = { padding: '6px 8px', background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' as const };
+const stickyFoot = { position: 'fixed' as const, bottom: 0, left: 0, right: 0, background: 'white', padding: '16px 20px', borderTop: '2px solid #0f172a', zIndex: 1000 };
+const mainBtn = { padding: '12px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold' as const, fontSize: '14px' };
 const resetStyle = { marginTop: '8px', background: '#e11d48', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' as const };
