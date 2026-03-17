@@ -24,12 +24,12 @@ const INITIAL_TITLES = [
 
 export default function DetailedConstructionEstimator() {
   const [projectInfo, setProjectInfo] = useState(() => {
-    const saved = localStorage.getItem('est_final_info');
+    const saved = localStorage.getItem('est_final_info_v2');
     return saved ? JSON.parse(saved) : { name: "", client: "" };
   });
 
   const [sections, setSections] = useState(() => {
-    const saved = localStorage.getItem('est_final_sections');
+    const saved = localStorage.getItem('est_final_sections_v2');
     return saved ? JSON.parse(saved) : INITIAL_TITLES.map((title, idx) => ({
       id: idx,
       title: title,
@@ -40,8 +40,8 @@ export default function DetailedConstructionEstimator() {
   });
 
   useEffect(() => {
-    localStorage.setItem('est_final_info', JSON.stringify(projectInfo));
-    localStorage.setItem('est_final_sections', JSON.stringify(sections));
+    localStorage.setItem('est_final_info_v2', JSON.stringify(projectInfo));
+    localStorage.setItem('est_final_sections_v2', JSON.stringify(sections));
   }, [projectInfo, sections]);
 
   const computedData = useMemo(() => {
@@ -86,7 +86,6 @@ export default function DetailedConstructionEstimator() {
     doc.text(`Project: ${projectInfo.name || 'N/A'}`, 14, 25);
     doc.text(`Client: ${projectInfo.client || 'N/A'}`, 14, 30);
 
-    // New logic: Show items if Total Quantity is NOT zero, even if Rate is zero
     const tableRows = computedData.processed
       .filter(s => Math.abs(s.totalQty) > 0)
       .map(s => [
@@ -99,7 +98,7 @@ export default function DetailedConstructionEstimator() {
 
     autoTable(doc, {
       startY: 38,
-      head: [['Work Description', 'Unit', 'Qty', 'Rate', 'Amount (₹)']],
+      head: [['Work Description', 'Unit', 'Qty', 'Rate', 'Amount (Rs.)']], // Column renamed to Amount (Rs.)
       body: tableRows,
       theme: 'grid',
       headStyles: { fillColor: [15, 23, 42], halign: 'center' },
@@ -112,7 +111,6 @@ export default function DetailedConstructionEstimator() {
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f1f5f9', minHeight: '100vh', paddingBottom: '160px', position: 'relative' }}>
       
-      {/* HEADER */}
       <div style={{ background: '#0f172a', color: 'white', padding: '20px 15px', textAlign: 'center' }}>
         <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>DETAILED CONSTRUCTION ESTIMATE</h2>
         <button onClick={() => { if(window.confirm("Clear all?")) { localStorage.clear(); window.location.reload(); }}} style={resetStyle}>RESET ALL</button>
@@ -123,7 +121,6 @@ export default function DetailedConstructionEstimator() {
         <input placeholder="Client Name" value={projectInfo.client} style={headerInp} onChange={e => setProjectInfo({...projectInfo, client: e.target.value})} />
       </div>
 
-      {/* ITEMS LIST */}
       <div style={{ padding: '8px' }}>
         {computedData.processed.map((sec) => (
           <div key={sec.id} style={{ background: '#fff', marginBottom: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
@@ -170,7 +167,6 @@ export default function DetailedConstructionEstimator() {
         ))}
       </div>
 
-      {/* MOBILE OPTIMIZED STICKY FOOTER */}
       <div style={stickyFoot}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#64748b' }}>ESTIMATE TOTAL</span>
@@ -189,7 +185,7 @@ export default function DetailedConstructionEstimator() {
   );
 }
 
-// Mobile Optimized Styles
+// Mobile Optimized Styling
 const tdStyle = { border: '1px solid #e2e8f0', padding: '4px', textAlign: 'center' as const };
 const cellInp = { width: '100%', border: 'none', textAlign: 'center' as const, fontSize: '12px', background: 'transparent' };
 const headerInp = { padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' };
