@@ -25,12 +25,12 @@ const INITIAL_TITLES = [
 
 export default function DetailedConstructionEstimator() {
   const [projectInfo, setProjectInfo] = useState(() => {
-    const saved = localStorage.getItem('est_v6_info');
+    const saved = localStorage.getItem('est_final_v7_info');
     return saved ? JSON.parse(saved) : { name: "", client: "" };
   });
 
   const [sections, setSections] = useState(() => {
-    const saved = localStorage.getItem('est_v6_sections');
+    const saved = localStorage.getItem('est_final_v7_sections');
     return saved ? JSON.parse(saved) : INITIAL_TITLES.map((title, idx) => ({
       id: idx,
       title: title,
@@ -41,8 +41,8 @@ export default function DetailedConstructionEstimator() {
   });
 
   useEffect(() => {
-    localStorage.setItem('est_v6_info', JSON.stringify(projectInfo));
-    localStorage.setItem('est_v6_sections', JSON.stringify(sections));
+    localStorage.setItem('est_final_v7_info', JSON.stringify(projectInfo));
+    localStorage.setItem('est_final_v7_sections', JSON.stringify(sections));
   }, [projectInfo, sections]);
 
   const computedData = useMemo(() => {
@@ -110,7 +110,6 @@ export default function DetailedConstructionEstimator() {
   };
 
   const exportToExcel = () => {
-    const workbook = XLSX.utils.book_new();
     const worksheetData: any[][] = [
       ["DETAILED CONSTRUCTION ESTIMATE"],
       [`Project: ${projectInfo.name || 'N/A'}`],
@@ -129,15 +128,16 @@ export default function DetailedConstructionEstimator() {
       ]);
     });
 
-    worksheetData.push([], ["", "", "", "GRAND TOTAL", computedData.grandTotal.toString()]); // Fixed TS2322 error here
+    worksheetData.push([], ["", "", "", "GRAND TOTAL", computedData.grandTotal.toString()]);
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Estimate");
     XLSX.writeFile(workbook, `${projectInfo.name || 'Estimate'}.xlsx`);
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f1f5f9', minHeight: '100vh', paddingBottom: '210px', position: 'relative' }}>
+    <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f1f5f9', minHeight: '100vh', paddingBottom: '180px', position: 'relative' }}>
       
       <div style={{ background: '#0f172a', color: 'white', padding: '20px 15px', textAlign: 'center' }}>
         <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>DETAILED CONSTRUCTION ESTIMATE</h2>
@@ -196,9 +196,9 @@ export default function DetailedConstructionEstimator() {
       </div>
 
       <div style={stickyFoot}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b' }}>ESTIMATE TOTAL</span>
-          <span style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#64748b' }}>ESTIMATE TOTAL</span>
+          <span style={{ fontSize: '22px', fontWeight: '900', color: '#0f172a' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           <button onClick={generatePDF} style={mainBtn}>PDF 📄</button>
@@ -221,6 +221,6 @@ const titleArea = { width: '100%', background: 'transparent', border: 'none', co
 const dropStyle = { padding: '4px', borderRadius: '4px', border: 'none', fontSize: '12px', background: '#f1f5f9' };
 const rateInp = { padding: '4px 8px', borderRadius: '4px', border: 'none', fontSize: '12px', width: '90px' };
 const addBtn = { padding: '6px 10px', background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' as const };
-const stickyFoot = { position: 'fixed' as const, bottom: 0, left: 0, right: 0, background: 'white', padding: '12px 20px', borderTop: '2px solid #0f172a', boxShadow: '0 -10px 15px rgba(0,0,0,0.1)', zIndex: 1000 };
-const mainBtn = { padding: '10px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px' };
+const stickyFoot = { position: 'fixed' as const, bottom: 0, left: 0, right: 0, background: 'white', padding: '16px 20px', borderTop: '2px solid #0f172a', boxShadow: '0 -10px 15px rgba(0,0,0,0.1)', zIndex: 1000 };
+const mainBtn = { padding: '14px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold' as const, fontSize: '14px' };
 const resetStyle = { marginTop: '8px', background: '#e11d48', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' as const };
