@@ -24,12 +24,12 @@ const INITIAL_TITLES = [
 
 export default function DetailedConstructionEstimator() {
   const [projectInfo, setProjectInfo] = useState(() => {
-    const saved = localStorage.getItem('est_final_v11_info');
+    const saved = localStorage.getItem('est_final_v12_info');
     return saved ? JSON.parse(saved) : { name: "", client: "" };
   });
 
   const [sections, setSections] = useState(() => {
-    const saved = localStorage.getItem('est_final_v11_sections');
+    const saved = localStorage.getItem('est_final_v12_sections');
     return saved ? JSON.parse(saved) : INITIAL_TITLES.map((title, idx) => ({
       id: idx,
       title: title,
@@ -41,8 +41,8 @@ export default function DetailedConstructionEstimator() {
   });
 
   useEffect(() => {
-    localStorage.setItem('est_final_v11_info', JSON.stringify(projectInfo));
-    localStorage.setItem('est_final_v11_sections', JSON.stringify(sections));
+    localStorage.setItem('est_final_v12_info', JSON.stringify(projectInfo));
+    localStorage.setItem('est_final_v12_sections', JSON.stringify(sections));
   }, [projectInfo, sections]);
 
   const computedData = useMemo(() => {
@@ -182,7 +182,7 @@ export default function DetailedConstructionEstimator() {
       </div>
 
       <div style={stickyFoot}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
           <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#64748b' }}>ESTIMATE TOTAL</span>
           <span style={{ fontSize: '22px', fontWeight: '900', color: '#0f172a' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
         </div>
