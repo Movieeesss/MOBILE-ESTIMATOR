@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import jsPDF from 'jsPDF';
+import jsPDF from 'jspdf'; // Corrected lowercase import
 import autoTable from 'jspdf-autotable';
 
 const INITIAL_TITLES = [
@@ -24,12 +24,12 @@ const INITIAL_TITLES = [
 
 export default function DetailedConstructionEstimator() {
   const [projectInfo, setProjectInfo] = useState(() => {
-    const saved = localStorage.getItem('est_v4_info');
+    const saved = localStorage.getItem('est_v5_info');
     return saved ? JSON.parse(saved) : { name: "", client: "", location: "" };
   });
 
   const [sections, setSections] = useState(() => {
-    const saved = localStorage.getItem('est_v4_sections');
+    const saved = localStorage.getItem('est_v5_sections');
     return saved ? JSON.parse(saved) : INITIAL_TITLES.map((title, idx) => ({
       id: idx,
       title: title,
@@ -40,8 +40,8 @@ export default function DetailedConstructionEstimator() {
   });
 
   useEffect(() => {
-    localStorage.setItem('est_v4_info', JSON.stringify(projectInfo));
-    localStorage.setItem('est_v4_sections', JSON.stringify(sections));
+    localStorage.setItem('est_v5_info', JSON.stringify(projectInfo));
+    localStorage.setItem('est_v5_sections', JSON.stringify(sections));
   }, [projectInfo, sections]);
 
   const computedData = useMemo(() => {
@@ -86,112 +86,114 @@ export default function DetailedConstructionEstimator() {
     doc.setFontSize(10);
     doc.text(`Project: ${projectInfo.name}`, 14, 25);
     doc.text(`Client: ${projectInfo.client}`, 14, 30);
-    doc.text(`Location: ${projectInfo.location}`, 14, 35);
 
-    // Only include items where Rate > 0
+    // PDF Logic: Only items with a Rate > 0 are included
     const tableRows = computedData.processed
       .filter(s => s.rateVal > 0)
-      .map(s => [s.title, s.unit, s.totalQty.toFixed(2), s.rateVal.toLocaleString(), s.amount.toLocaleString()]);
+      .map(s => [
+        s.title, 
+        s.unit, 
+        s.totalQty.toFixed(2), 
+        s.rateVal.toLocaleString(), 
+        s.amount.toLocaleString()
+      ]);
 
     autoTable(doc, {
-      startY: 45,
+      startY: 40,
       head: [['Description of Work', 'Unit', 'Qty', 'Rate', 'Amount (Rs)']],
       body: tableRows,
       theme: 'grid',
-      headStyles: { fillColor: [30, 41, 59] }
+      headStyles: { fillColor: [15, 23, 42] } // Dark Slate Theme
     });
 
-    doc.save(`Estimate_${projectInfo.name || 'Report'}.pdf`);
+    doc.save(`Estimate_${projectInfo.name || 'Site'}.pdf`);
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f1f5f9', minHeight: '100vh', paddingBottom: '180px', fontFamily: 'Arial' }}>
+    <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f8fafc', minHeight: '100vh', paddingBottom: '180px', fontFamily: 'Arial' }}>
       
-      {/* HEADER */}
-      <div style={{ background: '#1e293b', color: 'white', padding: '30px 15px', textAlign: 'center' }}>
-        <h2 style={{ margin: 0, fontSize: '18px', letterSpacing: '0.5px', fontWeight: 'bold' }}>DETAILED CONSTRUCTION ESTIMATE</h2>
-        <button onClick={() => { if(window.confirm("Reset all?")) { localStorage.clear(); window.location.reload(); }}} style={resetBtnStyle}>
-          RESET ALL DATA
+      <div style={{ background: '#0f172a', color: 'white', padding: '25px 15px', textAlign: 'center' }}>
+        <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>DETAILED CONSTRUCTION ESTIMATE</h2>
+        <button onClick={() => { if(window.confirm("Reset?")) { localStorage.clear(); window.location.reload(); }}} style={resetStyle}>
+          RESET DATA
         </button>
       </div>
 
-      {/* INFO SECTION */}
       <div style={{ background: '#fff', padding: '15px', borderBottom: '1px solid #e2e8f0', display: 'grid', gap: '8px' }}>
-        <input placeholder="Project Name" value={projectInfo.name} style={headerInput} onChange={e => setProjectInfo({...projectInfo, name: e.target.value})} />
-        <input placeholder="Client Name" value={projectInfo.client} style={headerInput} onChange={e => setProjectInfo({...projectInfo, client: e.target.value})} />
+        <input placeholder="Project Name" value={projectInfo.name} style={headerInp} onChange={e => setProjectInfo({...projectInfo, name: e.target.value})} />
+        <input placeholder="Client Name" value={projectInfo.client} style={headerInp} onChange={e => setProjectInfo({...projectInfo, client: e.target.value})} />
       </div>
 
-      {/* ITEMS */}
       {computedData.processed.map((sec) => (
-        <div key={sec.id} style={{ background: '#fff', margin: '12px 10px', borderRadius: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
+        <div key={sec.id} style={{ background: '#fff', margin: '12px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', overflow: 'hidden' }}>
           <div style={{ background: '#334155', padding: '10px' }}>
-            <textarea value={sec.title} onChange={(e) => updateSection(sec.id, 'title', e.target.value)} style={titleTextarea} rows={1} />
+            <textarea value={sec.title} onChange={(e) => updateSection(sec.id, 'title', e.target.value)} style={titleArea} rows={1} />
             <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-              <select value={sec.unit} onChange={(e) => updateSection(sec.id, 'unit', e.target.value)} style={unitSelect}>
+              <select value={sec.unit} onChange={(e) => updateSection(sec.id, 'unit', e.target.value)} style={dropStyle}>
                 <option>M3</option><option>M2</option><option>Nos</option><option>Rft</option>
               </select>
-              <input placeholder="Rate Rs." type="number" value={sec.rate} onChange={(e) => updateSection(sec.id, 'rate', e.target.value)} style={rateInput} />
+              <input placeholder="Rate (Rs.)" type="number" value={sec.rate} onChange={(e) => updateSection(sec.id, 'rate', e.target.value)} style={rateInp} />
             </div>
           </div>
 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-            <thead style={{ background: '#f8fafc' }}>
+            <thead style={{ background: '#f1f5f9' }}>
               <tr>
-                <th style={tdStyle}>Desc</th><th style={tdStyle}>Nos</th><th style={tdStyle}>L</th><th style={tdStyle}>B</th><th style={tdStyle}>D</th><th style={tdStyle}></th>
+                <th style={tdStyle}>Description</th><th style={tdStyle}>Nos</th><th style={tdStyle}>L</th><th style={tdStyle}>B</th><th style={tdStyle}>D</th><th style={tdStyle}></th>
               </tr>
             </thead>
             <tbody>
               {sec.measurements.map(m => (
                 <tr key={m.id} style={{ background: m.type === 'Ded' ? '#fff1f2' : 'white' }}>
-                  <td style={tdStyle}><input value={m.label} onChange={e => updateM(sec.id, m.id, 'label', e.target.value)} style={cellInput} /></td>
-                  <td style={tdStyle}><input type="number" value={m.nos} onChange={e => updateM(sec.id, m.id, 'nos', e.target.value)} style={cellInput} /></td>
-                  <td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInput} /></td>
-                  <td style={tdStyle}><input type="number" value={m.b} onChange={e => updateM(sec.id, m.id, 'b', e.target.value)} style={cellInput} /></td>
-                  <td style={tdStyle}><input type="number" value={m.d} onChange={e => updateM(sec.id, m.id, 'd', e.target.value)} style={cellInput} /></td>
-                  <td style={tdStyle}><button onClick={() => deleteRow(sec.id, m.id)} style={{ border: 'none', background: 'none' }}>🗑️</button></td>
+                  <td style={tdStyle}><input value={m.label} onChange={e => updateM(sec.id, m.id, 'label', e.target.value)} style={cellInp} /></td>
+                  <td style={tdStyle}><input type="number" value={m.nos} onChange={e => updateM(sec.id, m.id, 'nos', e.target.value)} style={cellInp} /></td>
+                  <td style={tdStyle}><input type="number" value={m.l} onChange={e => updateM(sec.id, m.id, 'l', e.target.value)} style={cellInp} /></td>
+                  <td style={tdStyle}><input type="number" value={m.b} onChange={e => updateM(sec.id, m.id, 'b', e.target.value)} style={cellInp} /></td>
+                  <td style={tdStyle}><input type="number" value={m.d} onChange={e => updateM(sec.id, m.id, 'd', e.target.value)} style={cellInp} /></td>
+                  <td style={tdStyle}><button onClick={() => deleteRow(sec.id, m.id)} style={{ border: 'none', background: 'transparent' }}>🗑️</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          <div style={{ padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
             <div style={{ display: 'flex', gap: '5px' }}>
-              <button onClick={() => addRow(sec.id, 'Add')} style={btnSml}>+ Add</button>
-              <button onClick={() => addRow(sec.id, 'Ded')} style={{ ...btnSml, background: '#ef4444' }}>- Ded</button>
+              <button onClick={() => addRow(sec.id, 'Add')} style={addBtn}>+ Add</button>
+              <button onClick={() => addRow(sec.id, 'Ded')} style={{ ...addBtn, background: '#e11d48' }}>- Ded</button>
             </div>
-            <div style={{ textAlign: 'right', fontSize: '12px', fontWeight: 'bold' }}>
+            <div style={{ textAlign: 'right', fontSize: '12px', fontWeight: '900', color: '#1e293b' }}>
                {sec.totalQty.toFixed(2)} {sec.unit} | ₹{sec.amount.toLocaleString()}
             </div>
           </div>
         </div>
       ))}
 
-      {/* FOOTER */}
-      <div style={footerStyle}>
+      <div style={stickyFoot}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-          <span style={{ fontWeight: 'bold', color: '#64748b' }}>TOTAL ESTIMATE:</span>
+          <span style={{ fontWeight: 'bold', color: '#475569' }}>ESTIMATE TOTAL:</span>
           <span style={{ fontWeight: 'bold', color: '#0f172a', fontSize: '20px' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          <button onClick={generatePDF} style={mainBtn}>PDF REPORT 📄</button>
+          <button onClick={generatePDF} style={mainBtn}>DOWNLOAD PDF</button>
           <button onClick={() => {
-            let msg = `*DETAILED ESTIMATE*\n*Project:* ${projectInfo.name}\n*Total:* ₹${computedData.grandTotal.toLocaleString()}\n\n`;
+            let msg = `*CONSTRUCTION ESTIMATE*\n*Project:* ${projectInfo.name}\n*Total:* ₹${computedData.grandTotal.toLocaleString()}\n\n`;
             computedData.processed.filter(s => s.rateVal > 0).forEach(s => msg += `✅ ${s.title}: ₹${s.amount.toLocaleString()}\n`);
             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-          }} style={{ ...mainBtn, background: '#22c55e' }}>WHATSAPP ✅</button>
+          }} style={{ ...mainBtn, background: '#16a34a' }}>WHATSAPP</button>
         </div>
       </div>
     </div>
   );
 }
 
+// Styles
 const tdStyle = { border: '1px solid #e2e8f0', padding: '6px', textAlign: 'center' as const };
-const cellInput = { width: '100%', border: 'none', textAlign: 'center' as const, fontSize: '11px', background: 'transparent' };
-const headerInput = { padding: '12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' };
-const titleTextarea = { width: '100%', background: 'transparent', border: 'none', color: 'white', fontWeight: 'bold' as const, fontSize: '14px', resize: 'none' as const };
-const unitSelect = { padding: '4px', borderRadius: '4px', border: 'none', fontSize: '11px', background: '#f1f5f9' };
-const rateInput = { padding: '4px 8px', borderRadius: '4px', border: 'none', fontSize: '11px', width: '90px' };
-const btnSml = { padding: '5px 10px', background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' as const };
-const footerStyle = { position: 'fixed' as const, bottom: 0, width: '100%', maxWidth: '600px', background: 'white', padding: '20px', borderTop: '2px solid #1e293b', boxShadow: '0 -10px 15px rgba(0,0,0,0.05)' };
+const cellInp = { width: '100%', border: 'none', textAlign: 'center' as const, fontSize: '11px', background: 'transparent' };
+const headerInp = { padding: '12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' };
+const titleArea = { width: '100%', background: 'transparent', border: 'none', color: 'white', fontWeight: 'bold' as const, fontSize: '13px', resize: 'none' as const };
+const dropStyle = { padding: '4px', borderRadius: '4px', border: 'none', fontSize: '11px', background: '#f8fafc' };
+const rateInp = { padding: '4px 8px', borderRadius: '4px', border: 'none', fontSize: '11px', width: '90px' };
+const addBtn = { padding: '6px 12px', background: '#059669', color: 'white', border: 'none', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' as const };
+const stickyFoot = { position: 'fixed' as const, bottom: 0, width: '100%', maxWidth: '600px', background: 'white', padding: '20px', borderTop: '2px solid #0f172a', boxShadow: '0 -10px 15px rgba(0,0,0,0.1)' };
 const mainBtn = { padding: '14px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '14px' };
-const resetBtnStyle = { marginTop: '15px', background: '#ef4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' as const };
+const resetStyle = { marginTop: '10px', background: '#e11d48', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' as const };
