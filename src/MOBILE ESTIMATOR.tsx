@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx'; // Import Excel library
 
 const INITIAL_TITLES = [
   "1. Earthwork excavation for foundation", "2. Filling in basement with gravel",
@@ -98,7 +99,7 @@ export default function DetailedConstructionEstimator() {
 
     autoTable(doc, {
       startY: 38,
-      head: [['Work Description', 'Unit', 'Qty', 'Rate', 'Amount (Rs.)']], // Column renamed to Amount (Rs.)
+      head: [['Work Description', 'Unit', 'Qty', 'Rate', 'Amount (Rs.)']],
       body: tableRows,
       theme: 'grid',
       headStyles: { fillColor: [15, 23, 42], halign: 'center' },
@@ -108,8 +109,36 @@ export default function DetailedConstructionEstimator() {
     doc.save(`${projectInfo.name || 'Estimate'}.pdf`);
   };
 
+  // NEW EXCEL EXPORT FUNCTION
+  const exportToExcel = () => {
+    const workbook = XLSX.utils.book_new();
+    const worksheetData = [
+      ["DETAILED CONSTRUCTION ESTIMATE"],
+      [`Project: ${projectInfo.name || 'N/A'}`],
+      [`Client: ${projectInfo.client || 'N/A'}`],
+      [],
+      ["Work Description", "Unit", "Qty", "Rate", "Amount (Rs.)"]
+    ];
+
+    computedData.processed.filter(s => Math.abs(s.totalQty) > 0).forEach(s => {
+      worksheetData.push([
+        s.title,
+        s.unit,
+        s.totalQty.toFixed(2),
+        s.rateVal > 0 ? s.rateVal : 0,
+        s.amount > 0 ? s.amount : 0
+      ]);
+    });
+
+    worksheetData.push([], ["", "", "", "GRAND TOTAL", computedData.grandTotal]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Estimate");
+    XLSX.writeFile(workbook, `${projectInfo.name || 'Estimate'}.xlsx`);
+  };
+
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f1f5f9', minHeight: '100vh', paddingBottom: '160px', position: 'relative' }}>
+    <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f1f5f9', minHeight: '100vh', paddingBottom: '210px', position: 'relative' }}>
       
       <div style={{ background: '#0f172a', color: 'white', padding: '20px 15px', textAlign: 'center' }}>
         <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>DETAILED CONSTRUCTION ESTIMATE</h2>
@@ -168,24 +197,25 @@ export default function DetailedConstructionEstimator() {
       </div>
 
       <div style={stickyFoot}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#64748b' }}>ESTIMATE TOTAL</span>
-          <span style={{ fontSize: '22px', fontWeight: '900', color: '#0f172a' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b' }}>ESTIMATE TOTAL</span>
+          <span style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-          <button onClick={generatePDF} style={mainBtn}>DOWNLOAD PDF 📄</button>
+          <button onClick={generatePDF} style={mainBtn}>PDF 📄</button>
+          <button onClick={exportToExcel} style={{ ...mainBtn, background: '#1e40af' }}>EXCEL 📊</button>
           <button onClick={() => {
             let msg = `*CONSTRUCTION ESTIMATE*\n*Project:* ${projectInfo.name}\n*Total:* ₹${computedData.grandTotal.toLocaleString()}\n\n`;
             computedData.processed.filter(s => s.totalQty !== 0).forEach(s => msg += `✅ ${s.title}: ${s.totalQty.toFixed(2)} ${s.unit}\n`);
             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-          }} style={{ ...mainBtn, background: '#16a34a' }}>WHATSAPP ✅</button>
+          }} style={{ ...mainBtn, background: '#16a34a', gridColumn: 'span 2' }}>WHATSAPP ✅</button>
         </div>
       </div>
     </div>
   );
 }
 
-// Mobile Optimized Styling
+// Styles
 const tdStyle = { border: '1px solid #e2e8f0', padding: '4px', textAlign: 'center' as const };
 const cellInp = { width: '100%', border: 'none', textAlign: 'center' as const, fontSize: '12px', background: 'transparent' };
 const headerInp = { padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' };
@@ -193,6 +223,6 @@ const titleArea = { width: '100%', background: 'transparent', border: 'none', co
 const dropStyle = { padding: '4px', borderRadius: '4px', border: 'none', fontSize: '12px', background: '#f1f5f9' };
 const rateInp = { padding: '4px 8px', borderRadius: '4px', border: 'none', fontSize: '12px', width: '90px' };
 const addBtn = { padding: '6px 10px', background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' as const };
-const stickyFoot = { position: 'fixed' as const, bottom: 0, left: 0, right: 0, background: 'white', padding: '16px 20px', borderTop: '2px solid #0f172a', boxShadow: '0 -10px 15px rgba(0,0,0,0.1)', zIndex: 1000 };
-const mainBtn = { padding: '14px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold' as const, fontSize: '14px' };
+const stickyFoot = { position: 'fixed' as const, bottom: 0, left: 0, right: 0, background: 'white', padding: '12px 20px', borderTop: '2px solid #0f172a', boxShadow: '0 -10px 15px rgba(0,0,0,0.1)', zIndex: 1000 };
+const mainBtn = { padding: '10px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold' as const, fontSize: '13px' };
 const resetStyle = { marginTop: '8px', background: '#e11d48', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' as const };
