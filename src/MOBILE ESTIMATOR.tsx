@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx'; // Import Excel library
+import * as XLSX from 'xlsx';
 
 const INITIAL_TITLES = [
   "1. Earthwork excavation for foundation", "2. Filling in basement with gravel",
@@ -25,12 +25,12 @@ const INITIAL_TITLES = [
 
 export default function DetailedConstructionEstimator() {
   const [projectInfo, setProjectInfo] = useState(() => {
-    const saved = localStorage.getItem('est_final_info_v2');
+    const saved = localStorage.getItem('est_v6_info');
     return saved ? JSON.parse(saved) : { name: "", client: "" };
   });
 
   const [sections, setSections] = useState(() => {
-    const saved = localStorage.getItem('est_final_sections_v2');
+    const saved = localStorage.getItem('est_v6_sections');
     return saved ? JSON.parse(saved) : INITIAL_TITLES.map((title, idx) => ({
       id: idx,
       title: title,
@@ -41,8 +41,8 @@ export default function DetailedConstructionEstimator() {
   });
 
   useEffect(() => {
-    localStorage.setItem('est_final_info_v2', JSON.stringify(projectInfo));
-    localStorage.setItem('est_final_sections_v2', JSON.stringify(sections));
+    localStorage.setItem('est_v6_info', JSON.stringify(projectInfo));
+    localStorage.setItem('est_v6_sections', JSON.stringify(sections));
   }, [projectInfo, sections]);
 
   const computedData = useMemo(() => {
@@ -109,10 +109,9 @@ export default function DetailedConstructionEstimator() {
     doc.save(`${projectInfo.name || 'Estimate'}.pdf`);
   };
 
-  // NEW EXCEL EXPORT FUNCTION
   const exportToExcel = () => {
     const workbook = XLSX.utils.book_new();
-    const worksheetData = [
+    const worksheetData: any[][] = [
       ["DETAILED CONSTRUCTION ESTIMATE"],
       [`Project: ${projectInfo.name || 'N/A'}`],
       [`Client: ${projectInfo.client || 'N/A'}`],
@@ -130,7 +129,7 @@ export default function DetailedConstructionEstimator() {
       ]);
     });
 
-    worksheetData.push([], ["", "", "", "GRAND TOTAL", computedData.grandTotal]);
+    worksheetData.push([], ["", "", "", "GRAND TOTAL", computedData.grandTotal.toString()]); // Fixed TS2322 error here
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
     XLSX.utils.book_append_sheet(workbook, worksheet, "Estimate");
@@ -215,7 +214,6 @@ export default function DetailedConstructionEstimator() {
   );
 }
 
-// Styles
 const tdStyle = { border: '1px solid #e2e8f0', padding: '4px', textAlign: 'center' as const };
 const cellInp = { width: '100%', border: 'none', textAlign: 'center' as const, fontSize: '12px', background: 'transparent' };
 const headerInp = { padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' };
