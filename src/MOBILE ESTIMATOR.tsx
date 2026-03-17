@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
 
 const INITIAL_TITLES = [
   "1. Earthwork excavation for foundation", "2. Filling in basement with gravel",
@@ -25,12 +24,12 @@ const INITIAL_TITLES = [
 
 export default function DetailedConstructionEstimator() {
   const [projectInfo, setProjectInfo] = useState(() => {
-    const saved = localStorage.getItem('est_final_v7_info');
+    const saved = localStorage.getItem('est_final_info_v2');
     return saved ? JSON.parse(saved) : { name: "", client: "" };
   });
 
   const [sections, setSections] = useState(() => {
-    const saved = localStorage.getItem('est_final_v7_sections');
+    const saved = localStorage.getItem('est_final_sections_v2');
     return saved ? JSON.parse(saved) : INITIAL_TITLES.map((title, idx) => ({
       id: idx,
       title: title,
@@ -41,8 +40,8 @@ export default function DetailedConstructionEstimator() {
   });
 
   useEffect(() => {
-    localStorage.setItem('est_final_v7_info', JSON.stringify(projectInfo));
-    localStorage.setItem('est_final_v7_sections', JSON.stringify(sections));
+    localStorage.setItem('est_final_info_v2', JSON.stringify(projectInfo));
+    localStorage.setItem('est_final_sections_v2', JSON.stringify(sections));
   }, [projectInfo, sections]);
 
   const computedData = useMemo(() => {
@@ -99,7 +98,7 @@ export default function DetailedConstructionEstimator() {
 
     autoTable(doc, {
       startY: 38,
-      head: [['Work Description', 'Unit', 'Qty', 'Rate', 'Amount (Rs.)']],
+      head: [['Work Description', 'Unit', 'Qty', 'Rate', 'Amount (Rs.)']], // Column renamed to Amount (Rs.)
       body: tableRows,
       theme: 'grid',
       headStyles: { fillColor: [15, 23, 42], halign: 'center' },
@@ -109,35 +108,8 @@ export default function DetailedConstructionEstimator() {
     doc.save(`${projectInfo.name || 'Estimate'}.pdf`);
   };
 
-  const exportToExcel = () => {
-    const worksheetData: any[][] = [
-      ["DETAILED CONSTRUCTION ESTIMATE"],
-      [`Project: ${projectInfo.name || 'N/A'}`],
-      [`Client: ${projectInfo.client || 'N/A'}`],
-      [],
-      ["Work Description", "Unit", "Qty", "Rate", "Amount (Rs.)"]
-    ];
-
-    computedData.processed.filter(s => Math.abs(s.totalQty) > 0).forEach(s => {
-      worksheetData.push([
-        s.title,
-        s.unit,
-        s.totalQty.toFixed(2),
-        s.rateVal > 0 ? s.rateVal : 0,
-        s.amount > 0 ? s.amount : 0
-      ]);
-    });
-
-    worksheetData.push([], ["", "", "", "GRAND TOTAL", computedData.grandTotal.toString()]);
-
-    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Estimate");
-    XLSX.writeFile(workbook, `${projectInfo.name || 'Estimate'}.xlsx`);
-  };
-
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f1f5f9', minHeight: '100vh', paddingBottom: '180px', position: 'relative' }}>
+    <div style={{ maxWidth: '600px', margin: '0 auto', background: '#f1f5f9', minHeight: '100vh', paddingBottom: '160px', position: 'relative' }}>
       
       <div style={{ background: '#0f172a', color: 'white', padding: '20px 15px', textAlign: 'center' }}>
         <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>DETAILED CONSTRUCTION ESTIMATE</h2>
@@ -201,19 +173,19 @@ export default function DetailedConstructionEstimator() {
           <span style={{ fontSize: '22px', fontWeight: '900', color: '#0f172a' }}>₹ {computedData.grandTotal.toLocaleString()}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-          <button onClick={generatePDF} style={mainBtn}>PDF 📄</button>
-          <button onClick={exportToExcel} style={{ ...mainBtn, background: '#1e40af' }}>EXCEL 📊</button>
+          <button onClick={generatePDF} style={mainBtn}>DOWNLOAD PDF 📄</button>
           <button onClick={() => {
             let msg = `*CONSTRUCTION ESTIMATE*\n*Project:* ${projectInfo.name}\n*Total:* ₹${computedData.grandTotal.toLocaleString()}\n\n`;
             computedData.processed.filter(s => s.totalQty !== 0).forEach(s => msg += `✅ ${s.title}: ${s.totalQty.toFixed(2)} ${s.unit}\n`);
             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-          }} style={{ ...mainBtn, background: '#16a34a', gridColumn: 'span 2' }}>WHATSAPP ✅</button>
+          }} style={{ ...mainBtn, background: '#16a34a' }}>WHATSAPP ✅</button>
         </div>
       </div>
     </div>
   );
 }
 
+// Mobile Optimized Styling
 const tdStyle = { border: '1px solid #e2e8f0', padding: '4px', textAlign: 'center' as const };
 const cellInp = { width: '100%', border: 'none', textAlign: 'center' as const, fontSize: '12px', background: 'transparent' };
 const headerInp = { padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' };
